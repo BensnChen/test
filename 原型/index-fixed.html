@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DDP在途库存监控系统</title>
+    
+    <!-- 使用更稳定的CDN和版本 -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/dayjs@1.11.10/dayjs.min.js"></script>
+    <script src="https://unpkg.com/dayjs@1.11.10/locale/zh-cn.js"></script>
+    
+    <!-- 使用兼容性更好的Ant Design版本 -->
+    <link rel="stylesheet" href="https://unpkg.com/antd@4.24.15/dist/antd.min.css">
+    <script src="https://unpkg.com/antd@4.24.15/dist/antd.min.js"></script>
+    
+    <!-- Babel最后加载 -->
+    <script src="https://unpkg.com/@babel/standalone@7.23.4/babel.min.js"></script>
+    
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f5f5f5;
+        }
+        
+        .app-container {
+            padding: 24px;
+            min-height: 100vh;
+        }
+        
+        .page-header {
+            background: white;
+            padding: 24px;
+            margin-bottom: 24px;
+            border-radius: 8px;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
+        }
+        
+        .page-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #262626;
+            margin: 0 0 8px 0;
+        }
+        
+        .page-description {
+            color: #8c8c8c;
+            margin: 0;
+        }
+        
+        .filter-section {
+            background: white;
+            padding: 24px;
+            margin-bottom: 24px;
+            border-radius: 8px;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
+        }
+        
+        .table-section {
+            background: white;
+            padding: 24px;
+            border-radius: 8px;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
+        }
+        
+        .table-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        
+        .toolbar-left {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .toolbar-right {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .ant-table-thead > tr > th {
+            background-color: #fafafa;
+            font-weight: 600;
+        }
+        
+        .ant-table-tbody > tr:hover > td {
+            background-color: #f5f5f5;
+        }
+    </style>
+</head>
+<body>
+    <div id="root">
+        <div style="display: flex; justify-content: center; align-items: center; height: 100vh;">
+            <div style="text-align: center;">
+                <div style="font-size: 24px; margin-bottom: 16px;">🔄 加载中...</div>
+                <div style="color: #666;">正在初始化DDP在途库存监控系统</div>
+            </div>
+        </div>
+    </div>
+
+    <script type="text/babel">
+        // 等待所有资源加载完成
+        window.addEventListener('load', function() {
+            // 检查依赖是否加载成功
+            if (typeof React === 'undefined') {
+                document.getElementById('root').innerHTML = '<div style="text-align: center; padding: 50px; color: red;">React 加载失败，请检查网络连接</div>';
+                return;
+            }
+            
+            if (typeof antd === 'undefined') {
+                document.getElementById('root').innerHTML = '<div style="text-align: center; padding: 50px; color: red;">Ant Design 加载失败，请检查网络连接</div>';
+                return;
+            }
+
+            // 开始渲染应用
+            renderApp();
+        });
+
+        function renderApp() {
+            const { useState, useMemo } = React;
+            const { 
+                Table, 
+                Button, 
+                Space, 
+                Form, 
+                Input, 
+                Select, 
+                DatePicker, 
+                Tag, 
+                Modal, 
+                Upload, 
+                message,
+                Tooltip,
+                Popconfirm,
+                Card,
+                Row,
+                Col,
+                Statistic,
+                Typography
+            } = antd;
+            
+            const { RangePicker } = DatePicker;
+            const { Option } = Select;
+            const { Dragger } = Upload;
+            const { Title, Text } = Typography;
+
+            // 配置dayjs
+            if (typeof dayjs !== 'undefined') {
+                dayjs.locale('zh-cn');
+            }
+
+            // 模拟数据
+            const mockData = [
+                {
+                    key: '1',
+                    purchaseOrderNo: 'PO202412001',
+                    stockOrderNo: 'SO202412001',
+                    shipQuantity: 1000,
+                    destinationWarehouse: '美国西海岸仓',
+                    shipDate: '2024-12-01',
+                    arrivalPortDate: '2024-12-15',
+                    arrivalWarehouseDate: '2024-12-18',
+                    shelfDate: '2024-12-20',
+                    actualShelfQuantity: 980,
+                    status: 'shelved'
+                },
+                {
+                    key: '2',
+                    purchaseOrderNo: 'PO202412002',
+                    stockOrderNo: 'SO202412002',
+                    shipQuantity: 1500,
+                    destinationWarehouse: '欧洲中心仓',
+                    shipDate: '2024-12-05',
+                    arrivalPortDate: '2024-12-20',
+                    arrivalWarehouseDate: null,
+                    shelfDate: null,
+                    actualShelfQuantity: null,
+                    status: 'in-transit'
+                },
+                {
+                    key: '3',
+                    purchaseOrderNo: 'PO202412003',
+                    stockOrderNo: 'SO202412003',
+                    shipQuantity: 800,
+                    destinationWarehouse: '日本东京仓',
+                    shipDate: '2024-11-28',
+                    arrivalPortDate: '2024-12-10',
+                    arrivalWarehouseDate: '2024-12-12',
+                    shelfDate: '2024-12-14',
+                    actualShelfQuantity: 800,
+                    status: 'shelved'
+                },
+                {
+                    key: '4',
+                    purchaseOrderNo: 'PO202412004',
+                    stockOrderNo: 'SO202412004',
+                    shipQuantity: 1200,
+                    destinationWarehouse: '澳洲悉尼仓',
+                    shipDate: '2024-12-08',
+                    arrivalPortDate: null,
+                    arrivalWarehouseDate: null,
+                    shelfDate: null,
+                    actualShelfQuantity: null,
+                    status: 'in-transit'
+                },
+                {
+                    key: '5',
+                    purchaseOrderNo: 'PO202412005',
+                    stockOrderNo: 'SO202412005',
+                    shipQuantity: 600,
+                    destinationWarehouse: '加拿大温哥华仓',
+                    shipDate: '2024-11-25',
+                    arrivalPortDate: '2024-12-08',
+                    arrivalWarehouseDate: '2024-12-10',
+                    shelfDate: null,
+                    actualShelfQuantity: null,
+                    status: 'cancelled'
+                }
+            ];
+
+            // 状态配置
+            const statusConfig = {
+                'in-transit': { text: '在途中', color: 'processing' },
+                'shelved': { text: '已上架', color: 'success' },
+                'cancelled': { text: '已取消', color: 'warning' }
+            };
+
+            // 仓库选项
+            const warehouseOptions = [
+                '美国西海岸仓',
+                '美国东海岸仓',
+                '欧洲中心仓',
+                '英国伦敦仓',
+                '日本东京仓',
+                '澳洲悉尼仓',
+                '加拿大温哥华仓'
+            ];
+
+            // 主组件
+            const DDPInventoryMonitor = () => {
+                const [data, setData] = useState(mockData);
+                const [loading, setLoading] = useState(false);
+                const [selectedRowKeys, setSelectedRowKeys] = useState([]);
+                const [batchImportVisible, setBatchImportVisible] = useState(false);
+                const [importData, setImportData] = useState([]);
+                const [form] = Form.useForm();
+
+                // 统计数据
+                const statistics = useMemo(() => {
+                    const total = data.length;
+                    const inTransit = data.filter(item => item.status === 'in-transit').length;
+                    const shelved = data.filter(item => item.status === 'shelved').length;
+                    const cancelled = data.filter(item => item.status === 'cancelled').length;
+                    const totalQuantity = data.reduce((sum, item) => sum + item.shipQuantity, 0);
+                    const shelvedQuantity = data.filter(item => item.status === 'shelved')
+                        .reduce((sum, item) => sum + (item.actualShelfQuantity || 0), 0);
+
+                    return {
+                        total,
+                        inTransit,
+                        shelved,
+                        cancelled,
+                        totalQuantity,
+                        shelvedQuantity
+                    };
+                }, [data]);
+
+                // 表格列定义
+                const columns = [
+                    {
+                        title: '采购订单号',
+                        dataIndex: 'purchaseOrderNo',
+                        key: 'purchaseOrderNo',
+                        width: 140,
+                        render: (text) => (
+                            React.createElement(Button, { type: "link", size: "small", style: { padding: 0 } }, text)
+                        )
+                    },
+                    {
+                        title: '备货单号',
+                        dataIndex: 'stockOrderNo',
+                        key: 'stockOrderNo',
+                        width: 140
+                    },
+                    {
+                        title: '发货数量',
+                        dataIndex: 'shipQuantity',
+                        key: 'shipQuantity',
+                        width: 100,
+                        align: 'right',
+                        render: (text) => text?.toLocaleString()
+                    },
+                    {
+                        title: '发往仓',
+                        dataIndex: 'destinationWarehouse',
+                        key: 'destinationWarehouse',
+                        width: 140,
+                        ellipsis: true
+                    },
+                    {
+                        title: '发货时间',
+                        dataIndex: 'shipDate',
+                        key: 'shipDate',
+                        width: 120,
+                        render: (text) => text || '-'
+                    },
+                    {
+                        title: '到港时间',
+                        dataIndex: 'arrivalPortDate',
+                        key: 'arrivalPortDate',
+                        width: 120,
+                        render: (text) => text || '-'
+                    },
+                    {
+                        title: '到仓时间',
+                        dataIndex: 'arrivalWarehouseDate',
+                        key: 'arrivalWarehouseDate',
+                        width: 120,
+                        render: (text) => text || '-'
+                    },
+                    {
+                        title: '上架时间',
+                        dataIndex: 'shelfDate',
+                        key: 'shelfDate',
+                        width: 120,
+                        render: (text) => text || '-'
+                    },
+                    {
+                        title: '实际上架数量',
+                        dataIndex: 'actualShelfQuantity',
+                        key: 'actualShelfQuantity',
+                        width: 120,
+                        align: 'right',
+                        render: (text) => text ? text.toLocaleString() : '-'
+                    },
+                    {
+                        title: '状态',
+                        dataIndex: 'status',
+                        key: 'status',
+                        width: 100,
+                        render: (status) => {
+                            const config = statusConfig[status];
+                            return React.createElement(Tag, { color: config.color }, config.text);
+                        }
+                    },
+                    {
+                        title: '操作',
+                        key: 'action',
+                        width: 120,
+                        fixed: 'right',
+                        render: (_, record) => (
+                            React.createElement(Space, { size: "small" }, [
+                                React.createElement(Button, { key: "edit", type: "link", size: "small" }, "编辑"),
+                                React.createElement(Popconfirm, {
+                                    key: "delete",
+                                    title: "确定要删除这条记录吗？",
+                                    onConfirm: () => handleDelete(record.key),
+                                    okText: "确定",
+                                    cancelText: "取消"
+                                }, React.createElement(Button, { type: "link", size: "small", danger: true }, "删除"))
+                            ])
+                        )
+                    }
+                ];
+
+                // 处理筛选
+                const handleFilter = (values) => {
+                    console.log('筛选条件:', values);
+                    setLoading(true);
+                    setTimeout(() => {
+                        setLoading(false);
+                        message.success('筛选完成');
+                    }, 1000);
+                };
+
+                // 重置筛选
+                const handleReset = () => {
+                    form.resetFields();
+                    setData(mockData);
+                    message.success('已重置筛选条件');
+                };
+
+                // 删除记录
+                const handleDelete = (key) => {
+                    setData(data.filter(item => item.key !== key));
+                    message.success('删除成功');
+                };
+
+                // 批量导入
+                const handleBatchImport = () => {
+                    setBatchImportVisible(true);
+                };
+
+                // 导出数据
+                const handleExport = () => {
+                    message.success('导出功能开发中...');
+                };
+
+                // 刷新数据
+                const handleRefresh = () => {
+                    setLoading(true);
+                    setTimeout(() => {
+                        setLoading(false);
+                        message.success('数据已刷新');
+                    }, 1000);
+                };
+
+                // 行选择配置
+                const rowSelection = {
+                    selectedRowKeys,
+                    onChange: setSelectedRowKeys
+                };
+
+                return React.createElement('div', { className: "app-container" }, [
+                    // 页面头部
+                    React.createElement('div', { key: "header", className: "page-header" }, [
+                        React.createElement('h1', { key: "title", className: "page-title" }, "DDP在途库存监控"),
+                        React.createElement('p', { key: "desc", className: "page-description" }, 
+                            "管理和监控DDP模式下的在途库存，跟踪从采购下单到海外仓上架的全流程状态")
+                    ]),
+
+                    // 统计卡片
+                    React.createElement(Row, { key: "stats", gutter: 16, style: { marginBottom: 24 } }, [
+                        React.createElement(Col, { key: "total", span: 6 }, 
+                            React.createElement(Card, null, 
+                                React.createElement(Statistic, {
+                                    title: "总订单数",
+                                    value: statistics.total,
+                                    suffix: "单"
+                                })
+                            )
+                        ),
+                        React.createElement(Col, { key: "transit", span: 6 }, 
+                            React.createElement(Card, null, 
+                                React.createElement(Statistic, {
+                                    title: "在途订单",
+                                    value: statistics.inTransit,
+                                    suffix: "单",
+                                    valueStyle: { color: '#1890ff' }
+                                })
+                            )
+                        ),
+                        React.createElement(Col, { key: "shelved", span: 6 }, 
+                            React.createElement(Card, null, 
+                                React.createElement(Statistic, {
+                                    title: "已上架订单",
+                                    value: statistics.shelved,
+                                    suffix: "单",
+                                    valueStyle: { color: '#52c41a' }
+                                })
+                            )
+                        ),
+                        React.createElement(Col, { key: "rate", span: 6 }, 
+                            React.createElement(Card, null, 
+                                React.createElement(Statistic, {
+                                    title: "上架完成率",
+                                    value: statistics.total > 0 ? ((statistics.shelvedQuantity / statistics.totalQuantity) * 100).toFixed(1) : 0,
+                                    suffix: "%",
+                                    valueStyle: { color: '#722ed1' }
+                                })
+                            )
+                        )
+                    ]),
+
+                    // 筛选区域
+                    React.createElement('div', { key: "filters", className: "filter-section" }, 
+                        React.createElement(Form, {
+                            form: form,
+                            layout: "inline",
+                            onFinish: handleFilter,
+                            style: { marginBottom: 16 }
+                        }, [
+                            React.createElement(Form.Item, { key: "po", name: "purchaseOrderNo", label: "采购订单号" },
+                                React.createElement(Input, { placeholder: "请输入采购订单号", style: { width: 180 } })
+                            ),
+                            React.createElement(Form.Item, { key: "so", name: "stockOrderNo", label: "备货单号" },
+                                React.createElement(Input, { placeholder: "请输入备货单号", style: { width: 180 } })
+                            ),
+                            React.createElement(Form.Item, { key: "warehouse", name: "destinationWarehouse", label: "发往仓" },
+                                React.createElement(Select, { placeholder: "请选择仓库", style: { width: 160 }, allowClear: true },
+                                    warehouseOptions.map(warehouse => 
+                                        React.createElement(Option, { key: warehouse, value: warehouse }, warehouse)
+                                    )
+                                )
+                            ),
+                            React.createElement(Form.Item, { key: "status", name: "status", label: "状态" },
+                                React.createElement(Select, { placeholder: "请选择状态", style: { width: 120 }, allowClear: true }, [
+                                    React.createElement(Option, { key: "in-transit", value: "in-transit" }, "在途中"),
+                                    React.createElement(Option, { key: "shelved", value: "shelved" }, "已上架"),
+                                    React.createElement(Option, { key: "cancelled", value: "cancelled" }, "已取消")
+                                ])
+                            ),
+                            React.createElement(Form.Item, { key: "buttons" },
+                                React.createElement(Space, null, [
+                                    React.createElement(Button, { key: "search", type: "primary", htmlType: "submit", loading: loading }, "查询"),
+                                    React.createElement(Button, { key: "reset", onClick: handleReset }, "重置")
+                                ])
+                            )
+                        ])
+                    ),
+
+                    // 表格区域
+                    React.createElement('div', { key: "table", className: "table-section" }, [
+                        React.createElement('div', { key: "toolbar", className: "table-toolbar" }, [
+                            React.createElement('div', { key: "left", className: "toolbar-left" }, [
+                                React.createElement(Button, { key: "import", type: "primary", onClick: handleBatchImport }, "批量导入日期"),
+                                React.createElement(Button, { key: "export", onClick: handleExport }, "导出数据"),
+                                selectedRowKeys.length > 0 && React.createElement(Popconfirm, {
+                                    key: "batch-delete",
+                                    title: `确定要删除选中的 ${selectedRowKeys.length} 条记录吗？`,
+                                    onConfirm: () => {
+                                        setData(data.filter(item => !selectedRowKeys.includes(item.key)));
+                                        setSelectedRowKeys([]);
+                                        message.success('批量删除成功');
+                                    },
+                                    okText: "确定",
+                                    cancelText: "取消"
+                                }, React.createElement(Button, { danger: true }, "批量删除"))
+                            ]),
+                            React.createElement('div', { key: "right", className: "toolbar-right" }, 
+                                React.createElement(Tooltip, { title: "刷新数据" },
+                                    React.createElement(Button, { icon: "🔄", onClick: handleRefresh, loading: loading })
+                                )
+                            )
+                        ]),
+
+                        React.createElement(Table, {
+                            key: "data-table",
+                            columns: columns,
+                            dataSource: data,
+                            rowSelection: rowSelection,
+                            loading: loading,
+                            scroll: { x: 1400 },
+                            pagination: {
+                                total: data.length,
+                                pageSize: 10,
+                                showSizeChanger: true,
+                                showQuickJumper: true,
+                                showTotal: (total, range) => `第 ${range[0]}-${range[1]} 条/共 ${total} 条记录`
+                            },
+                            size: "middle"
+                        })
+                    ]),
+
+                    // 批量导入弹窗
+                    React.createElement(Modal, {
+                        key: "import-modal",
+                        title: "批量导入日期",
+                        visible: batchImportVisible,
+                        onCancel: () => {
+                            setBatchImportVisible(false);
+                            setImportData([]);
+                        },
+                        footer: [
+                            React.createElement(Button, { 
+                                key: "cancel", 
+                                onClick: () => {
+                                    setBatchImportVisible(false);
+                                    setImportData([]);
+                                }
+                            }, "取消"),
+                            React.createElement(Button, {
+                                key: "confirm",
+                                type: "primary",
+                                loading: loading,
+                                disabled: importData.length === 0,
+                                onClick: () => {
+                                    message.success('导入功能演示：已模拟导入成功');
+                                    setBatchImportVisible(false);
+                                    setImportData([]);
+                                }
+                            }, `确认导入 (${importData.length})`)
+                        ],
+                        width: 800
+                    }, [
+                        React.createElement('div', { key: "upload-area", style: {
+                            border: '2px dashed #d9d9d9',
+                            borderRadius: '6px',
+                            background: '#fafafa',
+                            textAlign: 'center',
+                            padding: '40px 20px',
+                            cursor: 'pointer'
+                        }, onClick: () => {
+                            const mockImportData = [
+                                { key: 'import1', purchaseOrderNo: 'PO202412006', arrivalPortDate: '2024-12-25' },
+                                { key: 'import2', purchaseOrderNo: 'PO202412007', arrivalPortDate: '2024-12-26' }
+                            ];
+                            setImportData(mockImportData);
+                            message.success('模拟文件解析成功，请确认导入数据');
+                        }}, [
+                            React.createElement('p', { key: "icon", style: { fontSize: 48, margin: '16px 0' } }, "📁"),
+                            React.createElement('p', { key: "text", style: { fontSize: 16, margin: '0 0 8px 0' } }, "点击此区域模拟文件上传"),
+                            React.createElement('p', { key: "hint", style: { color: '#8c8c8c', margin: 0 } }, "支持 Excel (.xlsx, .xls) 和 CSV 格式文件")
+                        ]),
+                        
+                        importData.length > 0 && React.createElement('div', { key: "preview", style: { marginTop: 24 } }, [
+                            React.createElement(Title, { key: "preview-title", level: 5 }, "预览导入数据"),
+                            React.createElement(Table, {
+                                key: "preview-table",
+                                columns: [
+                                    { title: '采购订单号', dataIndex: 'purchaseOrderNo', key: 'purchaseOrderNo' },
+                                    { title: '到港时间', dataIndex: 'arrivalPortDate', key: 'arrivalPortDate' }
+                                ],
+                                dataSource: importData,
+                                pagination: false,
+                                size: "small"
+                            })
+                        ])
+                    ])
+                ]);
+            };
+
+            // 渲染应用
+            const root = ReactDOM.createRoot(document.getElementById('root'));
+            root.render(React.createElement(DDPInventoryMonitor));
+        }
+    </script>
+</body>
+</html>
