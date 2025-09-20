@@ -1,0 +1,1054 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DDP在途库存监控系统</title>
+    <style>
+/* Ant Design 风格的CSS样式 */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
+    font-size: 14px;
+    line-height: 1.5715;
+    color: rgba(0, 0, 0, 0.85);
+    background-color: #f0f2f5;
+}
+
+#app {
+    min-height: 100vh;
+}
+
+/* 页面头部样式 */
+.page-header {
+    background: #fff;
+    border-bottom: 1px solid #f0f0f0;
+    padding: 16px 24px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.page-title {
+    font-size: 20px;
+    font-weight: 600;
+    color: rgba(0, 0, 0, 0.85);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.header-actions {
+    display: flex;
+    gap: 12px;
+}
+
+/* 主内容区域 */
+.main-content {
+    max-width: 1200px;
+    margin: 24px auto;
+    padding: 0 24px;
+}
+
+/* 搜索区域样式 */
+.search-section {
+    background: #fff;
+    border-radius: 6px;
+    padding: 24px;
+    margin-bottom: 16px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.search-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.search-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.search-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 200px;
+}
+
+.search-item label {
+    font-weight: 500;
+    white-space: nowrap;
+    color: rgba(0, 0, 0, 0.85);
+}
+
+.date-range {
+    min-width: 300px;
+}
+
+.date-separator {
+    color: rgba(0, 0, 0, 0.45);
+    margin: 0 8px;
+}
+
+.search-actions {
+    display: flex;
+    gap: 8px;
+    margin-left: auto;
+}
+
+/* 表格区域样式 */
+.table-section {
+    background: #fff;
+    border-radius: 6px;
+    padding: 0;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.table-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 24px;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.toolbar-left {
+    color: rgba(0, 0, 0, 0.45);
+}
+
+.toolbar-right {
+    display: flex;
+    gap: 8px;
+}
+
+.total-count {
+    font-size: 14px;
+}
+
+/* 表格样式 */
+.table-container {
+    overflow-x: auto;
+}
+
+.ant-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #fff;
+}
+
+.ant-table th,
+.ant-table td {
+    padding: 16px;
+    text-align: left;
+    border-bottom: 1px solid #f0f0f0;
+    vertical-align: middle;
+}
+
+.ant-table th {
+    background: #fafafa;
+    font-weight: 500;
+    color: rgba(0, 0, 0, 0.85);
+    position: relative;
+}
+
+.ant-table th.sortable {
+    cursor: pointer;
+    user-select: none;
+}
+
+.ant-table th.sortable:hover {
+    background: #f5f5f5;
+}
+
+.sort-icon {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 0;
+    height: 0;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-bottom: 4px solid #bfbfbf;
+}
+
+.sort-icon.asc {
+    border-bottom: 4px solid #1890ff;
+}
+
+.sort-icon.desc {
+    border-bottom: none;
+    border-top: 4px solid #1890ff;
+}
+
+.selection-column {
+    width: 60px;
+    text-align: center;
+}
+
+.ant-table tbody tr:hover {
+    background: #f5f5f5;
+}
+
+/* 状态标签样式 */
+.status-tag {
+    display: inline-block;
+    padding: 0 7px;
+    font-size: 12px;
+    line-height: 20px;
+    border-radius: 2px;
+    border: 1px solid transparent;
+}
+
+.status-tag.status-transit {
+    color: #fa8c16;
+    background: #fff7e6;
+    border-color: #ffd591;
+}
+
+.status-tag.status-shelved {
+    color: #52c41a;
+    background: #f6ffed;
+    border-color: #b7eb8f;
+}
+
+.status-tag.status-cancelled {
+    color: #ff4d4f;
+    background: #fff2f0;
+    border-color: #ffccc7;
+}
+
+/* 分页器样式 */
+.pagination-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 24px;
+    border-top: 1px solid #f0f0f0;
+}
+
+.pagination-info {
+    color: rgba(0, 0, 0, 0.45);
+    font-size: 14px;
+}
+
+.ant-pagination {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ant-pagination-prev,
+.ant-pagination-next {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: 1px solid #d9d9d9;
+    border-radius: 6px;
+    background: #fff;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.ant-pagination-prev:hover:not(:disabled),
+.ant-pagination-next:hover:not(:disabled) {
+    border-color: #40a9ff;
+    color: #40a9ff;
+}
+
+.ant-pagination-prev:disabled,
+.ant-pagination-next:disabled {
+    color: rgba(0, 0, 0, 0.25);
+    cursor: not-allowed;
+}
+
+.ant-pagination-options {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.page-number {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.page-number:hover {
+    border-color: #40a9ff;
+    color: #40a9ff;
+}
+
+.page-number.active {
+    background: #1890ff;
+    border-color: #1890ff;
+    color: #fff;
+}
+
+/* 按钮样式 */
+.ant-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    height: 32px;
+    padding: 4px 15px;
+    font-size: 14px;
+    border-radius: 6px;
+    border: 1px solid #d9d9d9;
+    background: #fff;
+    color: rgba(0, 0, 0, 0.85);
+    cursor: pointer;
+    transition: all 0.3s;
+    text-decoration: none;
+}
+
+.ant-btn:hover {
+    border-color: #40a9ff;
+    color: #40a9ff;
+}
+
+.ant-btn:disabled {
+    color: rgba(0, 0, 0, 0.25);
+    background: #f5f5f5;
+    border-color: #d9d9d9;
+    cursor: not-allowed;
+}
+
+.ant-btn-primary {
+    background: #1890ff;
+    border-color: #1890ff;
+    color: #fff;
+}
+
+.ant-btn-primary:hover:not(:disabled) {
+    background: #40a9ff;
+    border-color: #40a9ff;
+}
+
+.ant-btn-link {
+    border: none;
+    background: transparent;
+    color: #1890ff;
+}
+
+.ant-btn-link:hover {
+    color: #40a9ff;
+    background: transparent;
+    border: none;
+}
+
+.ant-btn-sm {
+    height: 24px;
+    padding: 0 7px;
+    font-size: 12px;
+}
+
+/* 输入框样式 */
+.ant-input,
+.ant-select {
+    height: 32px;
+    padding: 4px 11px;
+    border: 1px solid #d9d9d9;
+    border-radius: 6px;
+    background: #fff;
+    transition: all 0.3s;
+    font-size: 14px;
+}
+
+.ant-input:focus,
+.ant-select:focus {
+    border-color: #40a9ff;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+}
+
+.ant-select-sm {
+    height: 24px;
+    padding: 0 7px;
+    font-size: 12px;
+}
+
+/* 复选框样式 */
+.ant-checkbox {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
+
+/* 模态框样式 */
+.ant-modal-mask {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ant-modal-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+}
+
+.ant-modal {
+    position: relative;
+    max-width: 520px;
+    width: 90%;
+    max-height: 80vh;
+    overflow: hidden;
+}
+
+.ant-modal-content {
+    background: #fff;
+    border-radius: 6px;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+    overflow: hidden;
+}
+
+.ant-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 24px;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.ant-modal-title {
+    font-size: 16px;
+    font-weight: 500;
+    color: rgba(0, 0, 0, 0.85);
+}
+
+.ant-modal-close {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    color: rgba(0, 0, 0, 0.45);
+    font-size: 16px;
+}
+
+.ant-modal-close:hover {
+    color: rgba(0, 0, 0, 0.85);
+}
+
+.ant-modal-body {
+    padding: 24px;
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.ant-modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 10px 16px;
+    border-top: 1px solid #f0f0f0;
+}
+
+/* 导入区域样式 */
+.import-section {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.import-type {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.ant-radio-group {
+    display: flex;
+    gap: 16px;
+}
+
+.ant-radio-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+
+.ant-radio {
+    width: 16px;
+    height: 16px;
+    border: 1px solid #d9d9d9;
+    border-radius: 50%;
+    position: relative;
+    cursor: pointer;
+}
+
+.ant-radio::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #1890ff;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+input[type="radio"]:checked + .ant-radio {
+    border-color: #1890ff;
+}
+
+input[type="radio"]:checked + .ant-radio::after {
+    opacity: 1;
+}
+
+/* 文件上传区域 */
+.upload-area {
+    border: 2px dashed #d9d9d9;
+    border-radius: 6px;
+    padding: 40px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.upload-area:hover {
+    border-color: #40a9ff;
+}
+
+.upload-area.dragover {
+    border-color: #1890ff;
+    background: #f0f9ff;
+}
+
+.upload-icon {
+    font-size: 48px;
+    color: #40a9ff;
+    margin-bottom: 16px;
+}
+
+.upload-text p {
+    margin: 0;
+    color: rgba(0, 0, 0, 0.85);
+}
+
+.upload-hint {
+    color: rgba(0, 0, 0, 0.45);
+    font-size: 12px;
+    margin-top: 8px !important;
+}
+
+/* 表单样式 */
+.edit-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.form-row {
+    display: flex;
+    gap: 16px;
+}
+
+.form-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.form-item label {
+    font-weight: 500;
+    color: rgba(0, 0, 0, 0.85);
+}
+
+/* 加载遮罩 */
+.loading-mask {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.8);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.loading-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+}
+
+.ant-spin {
+    display: inline-block;
+    font-size: 14px;
+}
+
+.ant-spin-dot {
+    position: relative;
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    transform: rotate(45deg);
+    animation: antRotate 1.2s infinite linear;
+}
+
+.ant-spin-dot-item {
+    position: absolute;
+    display: block;
+    width: 9px;
+    height: 9px;
+    background-color: #1890ff;
+    border-radius: 100%;
+    transform: scale(0.75);
+    transform-origin: 50% 50%;
+    opacity: 0.3;
+    animation: antSpinMove 1s infinite linear alternate;
+}
+
+.ant-spin-dot-item:nth-child(1) {
+    top: 0;
+    left: 0;
+}
+
+.ant-spin-dot-item:nth-child(2) {
+    top: 0;
+    right: 0;
+    animation-delay: 0.4s;
+}
+
+.ant-spin-dot-item:nth-child(3) {
+    right: 0;
+    bottom: 0;
+    animation-delay: 0.8s;
+}
+
+.ant-spin-dot-item:nth-child(4) {
+    bottom: 0;
+    left: 0;
+    animation-delay: 1.2s;
+}
+
+.loading-text {
+    color: rgba(0, 0, 0, 0.65);
+    font-size: 14px;
+}
+
+@keyframes antRotate {
+    to {
+        transform: rotate(405deg);
+    }
+}
+
+@keyframes antSpinMove {
+    to {
+        opacity: 1;
+    }
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .main-content {
+        padding: 0 16px;
+    }
+    
+    .search-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .search-item {
+        min-width: auto;
+    }
+    
+    .search-actions {
+        margin-left: 0;
+    }
+    
+    .table-container {
+        font-size: 12px;
+    }
+    
+    .ant-table th,
+    .ant-table td {
+        padding: 8px;
+    }
+    
+    .pagination-container {
+        flex-direction: column;
+        gap: 16px;
+        align-items: center;
+    }
+    
+    .form-row {
+        flex-direction: column;
+    }
+}
+
+/* 图标字体 */
+.anticon {
+    display: inline-block;
+    color: inherit;
+    font-style: normal;
+    line-height: 0;
+    text-align: center;
+    text-transform: none;
+    vertical-align: -0.125em;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+}
+
+.anticon-container::before { content: "📦"; }
+.anticon-upload::before { content: "📤"; }
+.anticon-search::before { content: "🔍"; }
+.anticon-reload::before { content: "🔄"; }
+.anticon-download::before { content: "📥"; }
+.anticon-edit::before { content: "✏️"; }
+.anticon-close::before { content: "✖️"; }
+.anticon-left::before { content: "◀"; }
+.anticon-right::before { content: "▶"; }
+.anticon-inbox::before { content: "📥"; }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <!-- 页面头部 -->
+        <header class="page-header">
+            <div class="header-content">
+                <h1 class="page-title">
+                    <span class="anticon anticon-container"></span>
+                    DDP在途库存监控
+                </h1>
+                <div class="header-actions">
+                    <button class="ant-btn ant-btn-primary" id="batchImportBtn">
+                        <span class="anticon anticon-upload"></span>
+                        批量导入日期
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- 主内容区 -->
+        <main class="main-content">
+            <!-- 搜索和筛选区域 -->
+            <div class="search-section">
+                <div class="search-form">
+                    <div class="search-row">
+                        <div class="search-item">
+                            <label>采购订单号:</label>
+                            <input type="text" class="ant-input" id="purchaseOrderSearch" placeholder="请输入采购订单号">
+                        </div>
+                        <div class="search-item">
+                            <label>备货单号:</label>
+                            <input type="text" class="ant-input" id="stockOrderSearch" placeholder="请输入备货单号">
+                        </div>
+                        <div class="search-item">
+                            <label>发往仓:</label>
+                            <select class="ant-select" id="warehouseFilter">
+                                <option value="">全部</option>
+                                <option value="US-CA">美国加州仓</option>
+                                <option value="US-TX">美国德州仓</option>
+                                <option value="UK-LON">英国伦敦仓</option>
+                                <option value="DE-BER">德国柏林仓</option>
+                            </select>
+                        </div>
+                        <div class="search-item">
+                            <label>状态:</label>
+                            <select class="ant-select" id="statusFilter">
+                                <option value="">全部</option>
+                                <option value="在途中">在途中</option>
+                                <option value="已上架">已上架</option>
+                                <option value="已取消">已取消</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="search-row">
+                        <div class="search-item date-range">
+                            <label>发货时间:</label>
+                            <input type="date" class="ant-input" id="shipDateStart">
+                            <span class="date-separator">至</span>
+                            <input type="date" class="ant-input" id="shipDateEnd">
+                        </div>
+                        <div class="search-actions">
+                            <button class="ant-btn ant-btn-primary" id="searchBtn">
+                                <span class="anticon anticon-search"></span>
+                                查询
+                            </button>
+                            <button class="ant-btn" id="resetBtn">
+                                <span class="anticon anticon-reload"></span>
+                                重置
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 数据表格区域 -->
+            <div class="table-section">
+                <!-- 表格工具栏 -->
+                <div class="table-toolbar">
+                    <div class="toolbar-left">
+                        <span class="total-count">共 <span id="totalCount">0</span> 条记录</span>
+                    </div>
+                    <div class="toolbar-right">
+                        <button class="ant-btn ant-btn-default" id="exportBtn">
+                            <span class="anticon anticon-download"></span>
+                            导出
+                        </button>
+                        <button class="ant-btn ant-btn-primary" id="batchUpdateBtn" disabled>
+                            <span class="anticon anticon-edit"></span>
+                            批量更新日期
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 数据表格 -->
+                <div class="table-container">
+                    <table class="ant-table" id="dataTable">
+                        <thead>
+                            <tr>
+                                <th class="selection-column">
+                                    <input type="checkbox" id="selectAll" class="ant-checkbox">
+                                </th>
+                                <th class="sortable" data-sort="purchaseOrder">
+                                    采购订单号
+                                    <span class="sort-icon"></span>
+                                </th>
+                                <th class="sortable" data-sort="stockOrder">
+                                    备货单号
+                                    <span class="sort-icon"></span>
+                                </th>
+                                <th class="sortable" data-sort="shipQuantity">
+                                    发货数量
+                                    <span class="sort-icon"></span>
+                                </th>
+                                <th>发往仓</th>
+                                <th class="sortable" data-sort="shipDate">
+                                    发货时间
+                                    <span class="sort-icon"></span>
+                                </th>
+                                <th class="sortable" data-sort="arrivalDate">
+                                    到港时间
+                                    <span class="sort-icon"></span>
+                                </th>
+                                <th class="sortable" data-sort="warehouseDate">
+                                    到仓时间
+                                    <span class="sort-icon"></span>
+                                </th>
+                                <th class="sortable" data-sort="shelfDate">
+                                    上架时间
+                                    <span class="sort-icon"></span>
+                                </th>
+                                <th class="sortable" data-sort="actualQuantity">
+                                    实际上架数量
+                                    <span class="sort-icon"></span>
+                                </th>
+                                <th>状态</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody">
+                            <!-- 数据行将通过JavaScript动态生成 -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- 分页器 -->
+                <div class="pagination-container">
+                    <div class="pagination-info">
+                        显示第 <span id="pageStart">1</span> 到 <span id="pageEnd">10</span> 条记录，
+                        共 <span id="pageTotal">0</span> 条
+                    </div>
+                    <div class="ant-pagination" id="pagination">
+                        <button class="ant-pagination-prev" id="prevPage" disabled>
+                            <span class="anticon anticon-left"></span>
+                        </button>
+                        <div class="ant-pagination-options" id="pageNumbers">
+                            <!-- 页码按钮将动态生成 -->
+                        </div>
+                        <button class="ant-pagination-next" id="nextPage">
+                            <span class="anticon anticon-right"></span>
+                        </button>
+                        <div class="ant-pagination-options">
+                            <select class="ant-select-sm" id="pageSizeSelect">
+                                <option value="10">10条/页</option>
+                                <option value="20">20条/页</option>
+                                <option value="50">50条/页</option>
+                                <option value="100">100条/页</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- 批量导入模态框 -->
+        <div class="ant-modal-mask" id="importModal" style="display: none;">
+            <div class="ant-modal-wrap">
+                <div class="ant-modal">
+                    <div class="ant-modal-content">
+                        <div class="ant-modal-header">
+                            <div class="ant-modal-title">批量导入日期</div>
+                            <button class="ant-modal-close" id="closeImportModal">
+                                <span class="anticon anticon-close"></span>
+                            </button>
+                        </div>
+                        <div class="ant-modal-body">
+                            <div class="import-section">
+                                <div class="import-type">
+                                    <label>导入类型:</label>
+                                    <div class="ant-radio-group">
+                                        <label class="ant-radio-wrapper">
+                                            <input type="radio" name="importType" value="arrival" checked>
+                                            <span class="ant-radio"></span>
+                                            到港时间
+                                        </label>
+                                        <label class="ant-radio-wrapper">
+                                            <input type="radio" name="importType" value="warehouse">
+                                            <span class="ant-radio"></span>
+                                            到仓时间
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="file-upload">
+                                    <div class="upload-area" id="uploadArea">
+                                        <div class="upload-icon">
+                                            <span class="anticon anticon-inbox"></span>
+                                        </div>
+                                        <div class="upload-text">
+                                            <p>点击或拖拽文件到此区域上传</p>
+                                            <p class="upload-hint">支持扩展名：.xlsx, .xls</p>
+                                        </div>
+                                        <input type="file" id="fileInput" accept=".xlsx,.xls" style="display: none;">
+                                    </div>
+                                </div>
+                                <div class="template-download">
+                                    <a href="#" id="downloadTemplate" class="ant-btn ant-btn-link">
+                                        <span class="anticon anticon-download"></span>
+                                        下载导入模板
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="ant-modal-footer">
+                            <button class="ant-btn" id="cancelImport">取消</button>
+                            <button class="ant-btn ant-btn-primary" id="confirmImport" disabled>确认导入</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 编辑模态框 -->
+        <div class="ant-modal-mask" id="editModal" style="display: none;">
+            <div class="ant-modal-wrap">
+                <div class="ant-modal">
+                    <div class="ant-modal-content">
+                        <div class="ant-modal-header">
+                            <div class="ant-modal-title">编辑记录</div>
+                            <button class="ant-modal-close" id="closeEditModal">
+                                <span class="anticon anticon-close"></span>
+                            </button>
+                        </div>
+                        <div class="ant-modal-body">
+                            <form class="edit-form" id="editForm">
+                                <div class="form-row">
+                                    <div class="form-item">
+                                        <label>采购订单号:</label>
+                                        <input type="text" class="ant-input" id="editPurchaseOrder" readonly>
+                                    </div>
+                                    <div class="form-item">
+                                        <label>备货单号:</label>
+                                        <input type="text" class="ant-input" id="editStockOrder" readonly>
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-item">
+                                        <label>到港时间:</label>
+                                        <input type="datetime-local" class="ant-input" id="editArrivalDate">
+                                    </div>
+                                    <div class="form-item">
+                                        <label>到仓时间:</label>
+                                        <input type="datetime-local" class="ant-input" id="editWarehouseDate">
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-item">
+                                        <label>实际上架数量:</label>
+                                        <input type="number" class="ant-input" id="editActualQuantity">
+                                    </div>
+                                    <div class="form-item">
+                                        <label>状态:</label>
+                                        <select class="ant-select" id="editStatus">
+                                            <option value="在途中">在途中</option>
+                                            <option value="已上架">已上架</option>
+                                            <option value="已取消">已取消</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                        <div class="ant-modal-footer">
+                            <button class="ant-btn" id="cancelEdit">取消</button>
+                            <button class="ant-btn ant-btn-primary" id="confirmEdit">保存</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 加载遮罩 -->
+        <div class="loading-mask" id="loadingMask" style="display: none;">
+            <div class="loading-content">
+                <div class="ant-spin">
+                    <span class="ant-spin-dot">
+                        <i class="ant-spin-dot-item"></i>
+                        <i class="ant-spin-dot-item"></i>
+                        <i class="ant-spin-dot-item"></i>
+                        <i class="ant-spin-dot-item"></i>
+                    </span>
+                </div>
+                <div class="loading-text">加载中...</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
