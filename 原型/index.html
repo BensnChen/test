@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DDP在途库存监控系统</title>
+    <!-- Ant Design CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/antd@5.26.7/dist/reset.css">
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <!-- Babel for JSX transformation -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Ant Design -->
+    <script src="https://unpkg.com/antd@5.26.7/dist/antd.min.js"></script>
+    <!-- Day.js for date handling -->
+    <script src="https://unpkg.com/dayjs@1.11.10/dayjs.min.js"></script>
+    <script src="https://unpkg.com/dayjs@1.11.10/plugin/customParseFormat.js"></script>
+    <script src="https://unpkg.com/dayjs@1.11.10/plugin/weekday.js"></script>
+    <script src="https://unpkg.com/dayjs@1.11.10/plugin/localeData.js"></script>
+    <script src="https://unpkg.com/dayjs@1.11.10/locale/zh-cn.js"></script>
+    
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f5f5f5;
+        }
+        
+        .app-container {
+            padding: 24px;
+            min-height: 100vh;
+        }
+        
+        .page-header {
+            background: white;
+            padding: 24px;
+            margin-bottom: 24px;
+            border-radius: 8px;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
+        }
+        
+        .page-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #262626;
+            margin: 0 0 8px 0;
+        }
+        
+        .page-description {
+            color: #8c8c8c;
+            margin: 0;
+        }
+        
+        .filter-section {
+            background: white;
+            padding: 24px;
+            margin-bottom: 24px;
+            border-radius: 8px;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
+        }
+        
+        .table-section {
+            background: white;
+            padding: 24px;
+            border-radius: 8px;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
+        }
+        
+        .table-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        
+        .toolbar-left {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .toolbar-right {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .status-tag {
+            border-radius: 4px;
+            padding: 2px 8px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        .status-in-transit {
+            background-color: #e6f7ff;
+            color: #1890ff;
+            border: 1px solid #91d5ff;
+        }
+        
+        .status-shelved {
+            background-color: #f6ffed;
+            color: #52c41a;
+            border: 1px solid #b7eb8f;
+        }
+        
+        .status-cancelled {
+            background-color: #fff2e8;
+            color: #fa8c16;
+            border: 1px solid #ffd591;
+        }
+        
+        .ant-table-thead > tr > th {
+            background-color: #fafafa;
+            font-weight: 600;
+        }
+        
+        .ant-table-tbody > tr:hover > td {
+            background-color: #f5f5f5;
+        }
+        
+        .batch-import-modal .ant-upload-drag {
+            border: 2px dashed #d9d9d9;
+            border-radius: 6px;
+            background: #fafafa;
+            text-align: center;
+            padding: 40px 20px;
+        }
+        
+        .batch-import-modal .ant-upload-drag:hover {
+            border-color: #1890ff;
+        }
+        
+        .upload-hint {
+            margin-top: 16px;
+            color: #8c8c8c;
+            font-size: 14px;
+        }
+        
+        .preview-table {
+            margin-top: 24px;
+        }
+        
+        .import-summary {
+            background: #f6ffed;
+            border: 1px solid #b7eb8f;
+            border-radius: 6px;
+            padding: 16px;
+            margin-top: 16px;
+        }
+        
+        .summary-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        
+        .summary-item:last-child {
+            margin-bottom: 0;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo } = React;
+        const { 
+            Table, 
+            Button, 
+            Space, 
+            Form, 
+            Input, 
+            Select, 
+            DatePicker, 
+            Tag, 
+            Modal, 
+            Upload, 
+            message,
+            Tooltip,
+            Popconfirm,
+            Card,
+            Row,
+            Col,
+            Statistic,
+            Typography
+        } = antd;
+        
+        const { RangePicker } = DatePicker;
+        const { Option } = Select;
+        const { Dragger } = Upload;
+        const { Title, Text } = Typography;
+
+        // 配置dayjs
+        dayjs.extend(window.dayjs_plugin_customParseFormat);
+        dayjs.extend(window.dayjs_plugin_weekday);
+        dayjs.extend(window.dayjs_plugin_localeData);
+        dayjs.locale('zh-cn');
+
+        // 模拟数据
+        const mockData = [
+            {
+                key: '1',
+                purchaseOrderNo: 'PO202412001',
+                stockOrderNo: 'SO202412001',
+                shipQuantity: 1000,
+                destinationWarehouse: '美国西海岸仓',
+                shipDate: '2024-12-01',
+                arrivalPortDate: '2024-12-15',
+                arrivalWarehouseDate: '2024-12-18',
+                shelfDate: '2024-12-20',
+                actualShelfQuantity: 980,
+                status: 'shelved'
+            },
+            {
+                key: '2',
+                purchaseOrderNo: 'PO202412002',
+                stockOrderNo: 'SO202412002',
+                shipQuantity: 1500,
+                destinationWarehouse: '欧洲中心仓',
+                shipDate: '2024-12-05',
+                arrivalPortDate: '2024-12-20',
+                arrivalWarehouseDate: null,
+                shelfDate: null,
+                actualShelfQuantity: null,
+                status: 'in-transit'
+            },
+            {
+                key: '3',
+                purchaseOrderNo: 'PO202412003',
+                stockOrderNo: 'SO202412003',
+                shipQuantity: 800,
+                destinationWarehouse: '日本东京仓',
+                shipDate: '2024-11-28',
+                arrivalPortDate: '2024-12-10',
+                arrivalWarehouseDate: '2024-12-12',
+                shelfDate: '2024-12-14',
+                actualShelfQuantity: 800,
+                status: 'shelved'
+            },
+            {
+                key: '4',
+                purchaseOrderNo: 'PO202412004',
+                stockOrderNo: 'SO202412004',
+                shipQuantity: 1200,
+                destinationWarehouse: '澳洲悉尼仓',
+                shipDate: '2024-12-08',
+                arrivalPortDate: null,
+                arrivalWarehouseDate: null,
+                shelfDate: null,
+                actualShelfQuantity: null,
+                status: 'in-transit'
+            },
+            {
+                key: '5',
+                purchaseOrderNo: 'PO202412005',
+                stockOrderNo: 'SO202412005',
+                shipQuantity: 600,
+                destinationWarehouse: '加拿大温哥华仓',
+                shipDate: '2024-11-25',
+                arrivalPortDate: '2024-12-08',
+                arrivalWarehouseDate: '2024-12-10',
+                shelfDate: null,
+                actualShelfQuantity: null,
+                status: 'cancelled'
+            }
+        ];
+
+        // 状态配置
+        const statusConfig = {
+            'in-transit': { text: '在途中', color: 'processing' },
+            'shelved': { text: '已上架', color: 'success' },
+            'cancelled': { text: '已取消', color: 'warning' }
+        };
+
+        // 仓库选项
+        const warehouseOptions = [
+            '美国西海岸仓',
+            '美国东海岸仓',
+            '欧洲中心仓',
+            '英国伦敦仓',
+            '日本东京仓',
+            '澳洲悉尼仓',
+            '加拿大温哥华仓'
+        ];
+
+        // 主组件
+        const DDPInventoryMonitor = () => {
+            const [data, setData] = useState(mockData);
+            const [loading, setLoading] = useState(false);
+            const [selectedRowKeys, setSelectedRowKeys] = useState([]);
+            const [batchImportVisible, setBatchImportVisible] = useState(false);
+            const [importData, setImportData] = useState([]);
+            const [form] = Form.useForm();
+
+            // 统计数据
+            const statistics = useMemo(() => {
+                const total = data.length;
+                const inTransit = data.filter(item => item.status === 'in-transit').length;
+                const shelved = data.filter(item => item.status === 'shelved').length;
+                const cancelled = data.filter(item => item.status === 'cancelled').length;
+                const totalQuantity = data.reduce((sum, item) => sum + item.shipQuantity, 0);
+                const shelvedQuantity = data.filter(item => item.status === 'shelved')
+                    .reduce((sum, item) => sum + (item.actualShelfQuantity || 0), 0);
+
+                return {
+                    total,
+                    inTransit,
+                    shelved,
+                    cancelled,
+                    totalQuantity,
+                    shelvedQuantity
+                };
+            }, [data]);
+
+            // 表格列定义
+            const columns = [
+                {
+                    title: '采购订单号',
+                    dataIndex: 'purchaseOrderNo',
+                    key: 'purchaseOrderNo',
+                    width: 140,
+                    render: (text) => (
+                        <Button type="link" size="small" style={{ padding: 0 }}>
+                            {text}
+                        </Button>
+                    )
+                },
+                {
+                    title: '备货单号',
+                    dataIndex: 'stockOrderNo',
+                    key: 'stockOrderNo',
+                    width: 140
+                },
+                {
+                    title: '发货数量',
+                    dataIndex: 'shipQuantity',
+                    key: 'shipQuantity',
+                    width: 100,
+                    align: 'right',
+                    render: (text) => text?.toLocaleString()
+                },
+                {
+                    title: '发往仓',
+                    dataIndex: 'destinationWarehouse',
+                    key: 'destinationWarehouse',
+                    width: 140,
+                    ellipsis: true
+                },
+                {
+                    title: '发货时间',
+                    dataIndex: 'shipDate',
+                    key: 'shipDate',
+                    width: 120,
+                    render: (text) => text ? dayjs(text).format('YYYY-MM-DD') : '-'
+                },
+                {
+                    title: '到港时间',
+                    dataIndex: 'arrivalPortDate',
+                    key: 'arrivalPortDate',
+                    width: 120,
+                    render: (text) => text ? dayjs(text).format('YYYY-MM-DD') : '-'
+                },
+                {
+                    title: '到仓时间',
+                    dataIndex: 'arrivalWarehouseDate',
+                    key: 'arrivalWarehouseDate',
+                    width: 120,
+                    render: (text) => text ? dayjs(text).format('YYYY-MM-DD') : '-'
+                },
+                {
+                    title: '上架时间',
+                    dataIndex: 'shelfDate',
+                    key: 'shelfDate',
+                    width: 120,
+                    render: (text) => text ? dayjs(text).format('YYYY-MM-DD') : '-'
+                },
+                {
+                    title: '实际上架数量',
+                    dataIndex: 'actualShelfQuantity',
+                    key: 'actualShelfQuantity',
+                    width: 120,
+                    align: 'right',
+                    render: (text) => text ? text.toLocaleString() : '-'
+                },
+                {
+                    title: '状态',
+                    dataIndex: 'status',
+                    key: 'status',
+                    width: 100,
+                    render: (status) => {
+                        const config = statusConfig[status];
+                        return <Tag color={config.color}>{config.text}</Tag>;
+                    }
+                },
+                {
+                    title: '操作',
+                    key: 'action',
+                    width: 120,
+                    fixed: 'right',
+                    render: (_, record) => (
+                        <Space size="small">
+                            <Button type="link" size="small">编辑</Button>
+                            <Popconfirm
+                                title="确定要删除这条记录吗？"
+                                onConfirm={() => handleDelete(record.key)}
+                                okText="确定"
+                                cancelText="取消"
+                            >
+                                <Button type="link" size="small" danger>删除</Button>
+                            </Popconfirm>
+                        </Space>
+                    )
+                }
+            ];
+
+            // 处理筛选
+            const handleFilter = (values) => {
+                console.log('筛选条件:', values);
+                setLoading(true);
+                // 模拟API调用
+                setTimeout(() => {
+                    setLoading(false);
+                    message.success('筛选完成');
+                }, 1000);
+            };
+
+            // 重置筛选
+            const handleReset = () => {
+                form.resetFields();
+                setData(mockData);
+                message.success('已重置筛选条件');
+            };
+
+            // 删除记录
+            const handleDelete = (key) => {
+                setData(data.filter(item => item.key !== key));
+                message.success('删除成功');
+            };
+
+            // 批量导入
+            const handleBatchImport = () => {
+                setBatchImportVisible(true);
+            };
+
+            // 文件上传配置
+            const uploadProps = {
+                name: 'file',
+                multiple: false,
+                accept: '.xlsx,.xls,.csv',
+                beforeUpload: (file) => {
+                    // 模拟文件解析
+                    const mockImportData = [
+                        {
+                            key: 'import1',
+                            purchaseOrderNo: 'PO202412006',
+                            arrivalPortDate: '2024-12-25',
+                            arrivalWarehouseDate: '2024-12-28',
+                            shelfDate: '2024-12-30'
+                        },
+                        {
+                            key: 'import2',
+                            purchaseOrderNo: 'PO202412007',
+                            arrivalPortDate: '2024-12-26',
+                            arrivalWarehouseDate: '2024-12-29',
+                            shelfDate: '2025-01-02'
+                        }
+                    ];
+                    setImportData(mockImportData);
+                    message.success('文件解析成功，请确认导入数据');
+                    return false; // 阻止自动上传
+                },
+                onDrop(e) {
+                    console.log('Dropped files', e.dataTransfer.files);
+                }
+            };
+
+            // 确认导入
+            const handleConfirmImport = () => {
+                setLoading(true);
+                setTimeout(() => {
+                    setData([...data, ...importData.map(item => ({
+                        ...item,
+                        key: `${Date.now()}_${Math.random()}`,
+                        stockOrderNo: `SO${item.purchaseOrderNo.slice(2)}`,
+                        shipQuantity: Math.floor(Math.random() * 1000) + 500,
+                        destinationWarehouse: warehouseOptions[Math.floor(Math.random() * warehouseOptions.length)],
+                        shipDate: dayjs().subtract(Math.floor(Math.random() * 30), 'day').format('YYYY-MM-DD'),
+                        actualShelfQuantity: null,
+                        status: 'in-transit'
+                    }))]);
+                    setBatchImportVisible(false);
+                    setImportData([]);
+                    setLoading(false);
+                    message.success(`成功导入 ${importData.length} 条记录`);
+                }, 1500);
+            };
+
+            // 导出数据
+            const handleExport = () => {
+                message.success('导出功能开发中...');
+            };
+
+            // 刷新数据
+            const handleRefresh = () => {
+                setLoading(true);
+                setTimeout(() => {
+                    setLoading(false);
+                    message.success('数据已刷新');
+                }, 1000);
+            };
+
+            // 行选择配置
+            const rowSelection = {
+                selectedRowKeys,
+                onChange: setSelectedRowKeys,
+                selections: [
+                    Table.SELECTION_ALL,
+                    Table.SELECTION_INVERT,
+                    Table.SELECTION_NONE
+                ]
+            };
+
+            return (
+                <div className="app-container">
+                    {/* 页面头部 */}
+                    <div className="page-header">
+                        <h1 className="page-title">DDP在途库存监控</h1>
+                        <p className="page-description">
+                            管理和监控DDP模式下的在途库存，跟踪从采购下单到海外仓上架的全流程状态
+                        </p>
+                    </div>
+
+                    {/* 统计卡片 */}
+                    <Row gutter={16} style={{ marginBottom: 24 }}>
+                        <Col span={6}>
+                            <Card>
+                                <Statistic
+                                    title="总订单数"
+                                    value={statistics.total}
+                                    suffix="单"
+                                />
+                            </Card>
+                        </Col>
+                        <Col span={6}>
+                            <Card>
+                                <Statistic
+                                    title="在途订单"
+                                    value={statistics.inTransit}
+                                    suffix="单"
+                                    valueStyle={{ color: '#1890ff' }}
+                                />
+                            </Card>
+                        </Col>
+                        <Col span={6}>
+                            <Card>
+                                <Statistic
+                                    title="已上架订单"
+                                    value={statistics.shelved}
+                                    suffix="单"
+                                    valueStyle={{ color: '#52c41a' }}
+                                />
+                            </Card>
+                        </Col>
+                        <Col span={6}>
+                            <Card>
+                                <Statistic
+                                    title="上架完成率"
+                                    value={statistics.total > 0 ? ((statistics.shelvedQuantity / statistics.totalQuantity) * 100).toFixed(1) : 0}
+                                    suffix="%"
+                                    valueStyle={{ color: '#722ed1' }}
+                                />
+                            </Card>
+                        </Col>
+                    </Row>
+
+                    {/* 筛选区域 */}
+                    <div className="filter-section">
+                        <Form
+                            form={form}
+                            layout="inline"
+                            onFinish={handleFilter}
+                            style={{ marginBottom: 16 }}
+                        >
+                            <Form.Item name="purchaseOrderNo" label="采购订单号">
+                                <Input placeholder="请输入采购订单号" style={{ width: 180 }} />
+                            </Form.Item>
+                            <Form.Item name="stockOrderNo" label="备货单号">
+                                <Input placeholder="请输入备货单号" style={{ width: 180 }} />
+                            </Form.Item>
+                            <Form.Item name="destinationWarehouse" label="发往仓">
+                                <Select placeholder="请选择仓库" style={{ width: 160 }} allowClear>
+                                    {warehouseOptions.map(warehouse => (
+                                        <Option key={warehouse} value={warehouse}>{warehouse}</Option>
+                                    ))}
+                                </Select>
+                            </Form.Item>
+                            <Form.Item name="status" label="状态">
+                                <Select placeholder="请选择状态" style={{ width: 120 }} allowClear>
+                                    <Option value="in-transit">在途中</Option>
+                                    <Option value="shelved">已上架</Option>
+                                    <Option value="cancelled">已取消</Option>
+                                </Select>
+                            </Form.Item>
+                            <Form.Item name="dateRange" label="发货时间">
+                                <RangePicker style={{ width: 240 }} />
+                            </Form.Item>
+                            <Form.Item>
+                                <Space>
+                                    <Button type="primary" htmlType="submit" loading={loading}>
+                                        查询
+                                    </Button>
+                                    <Button onClick={handleReset}>重置</Button>
+                                </Space>
+                            </Form.Item>
+                        </Form>
+                    </div>
+
+                    {/* 表格区域 */}
+                    <div className="table-section">
+                        <div className="table-toolbar">
+                            <div className="toolbar-left">
+                                <Button type="primary" onClick={handleBatchImport}>
+                                    批量导入日期
+                                </Button>
+                                <Button onClick={handleExport}>导出数据</Button>
+                                {selectedRowKeys.length > 0 && (
+                                    <Popconfirm
+                                        title={`确定要删除选中的 ${selectedRowKeys.length} 条记录吗？`}
+                                        onConfirm={() => {
+                                            setData(data.filter(item => !selectedRowKeys.includes(item.key)));
+                                            setSelectedRowKeys([]);
+                                            message.success('批量删除成功');
+                                        }}
+                                        okText="确定"
+                                        cancelText="取消"
+                                    >
+                                        <Button danger>批量删除</Button>
+                                    </Popconfirm>
+                                )}
+                            </div>
+                            <div className="toolbar-right">
+                                <Tooltip title="刷新数据">
+                                    <Button icon="🔄" onClick={handleRefresh} loading={loading} />
+                                </Tooltip>
+                            </div>
+                        </div>
+
+                        <Table
+                            columns={columns}
+                            dataSource={data}
+                            rowSelection={rowSelection}
+                            loading={loading}
+                            scroll={{ x: 1400 }}
+                            pagination={{
+                                total: data.length,
+                                pageSize: 10,
+                                showSizeChanger: true,
+                                showQuickJumper: true,
+                                showTotal: (total, range) => 
+                                    `第 ${range[0]}-${range[1]} 条/共 ${total} 条记录`
+                            }}
+                            size="middle"
+                        />
+                    </div>
+
+                    {/* 批量导入弹窗 */}
+                    <Modal
+                        title="批量导入日期"
+                        open={batchImportVisible}
+                        onCancel={() => {
+                            setBatchImportVisible(false);
+                            setImportData([]);
+                        }}
+                        footer={[
+                            <Button key="cancel" onClick={() => {
+                                setBatchImportVisible(false);
+                                setImportData([]);
+                            }}>
+                                取消
+                            </Button>,
+                            <Button
+                                key="confirm"
+                                type="primary"
+                                loading={loading}
+                                disabled={importData.length === 0}
+                                onClick={handleConfirmImport}
+                            >
+                                确认导入 ({importData.length})
+                            </Button>
+                        ]}
+                        width={800}
+                        className="batch-import-modal"
+                    >
+                        <Dragger {...uploadProps}>
+                            <p style={{ fontSize: 48, margin: '16px 0' }}>📁</p>
+                            <p style={{ fontSize: 16, margin: '0 0 8px 0' }}>
+                                点击或拖拽文件到此区域上传
+                            </p>
+                            <p style={{ color: '#8c8c8c', margin: 0 }}>
+                                支持 Excel (.xlsx, .xls) 和 CSV 格式文件
+                            </p>
+                        </Dragger>
+                        
+                        <div className="upload-hint">
+                            <Text type="secondary">
+                                💡 模板说明：请确保Excel文件包含以下列：采购订单号、到港时间、到仓时间、上架时间
+                            </Text>
+                        </div>
+
+                        {importData.length > 0 && (
+                            <div className="preview-table">
+                                <Title level={5}>预览导入数据</Title>
+                                <Table
+                                    columns={[
+                                        { title: '采购订单号', dataIndex: 'purchaseOrderNo', key: 'purchaseOrderNo' },
+                                        { title: '到港时间', dataIndex: 'arrivalPortDate', key: 'arrivalPortDate' },
+                                        { title: '到仓时间', dataIndex: 'arrivalWarehouseDate', key: 'arrivalWarehouseDate' },
+                                        { title: '上架时间', dataIndex: 'shelfDate', key: 'shelfDate' }
+                                    ]}
+                                    dataSource={importData}
+                                    pagination={false}
+                                    size="small"
+                                />
+                                
+                                <div className="import-summary">
+                                    <div className="summary-item">
+                                        <Text strong>导入统计</Text>
+                                    </div>
+                                    <div className="summary-item">
+                                        <Text>总记录数：</Text>
+                                        <Text strong>{importData.length} 条</Text>
+                                    </div>
+                                    <div className="summary-item">
+                                        <Text>有效记录：</Text>
+                                        <Text strong style={{ color: '#52c41a' }}>{importData.length} 条</Text>
+                                    </div>
+                                    <div className="summary-item">
+                                        <Text>无效记录：</Text>
+                                        <Text strong style={{ color: '#ff4d4f' }}>0 条</Text>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </Modal>
+                </div>
+            );
+        };
+
+        // 渲染应用
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<DDPInventoryMonitor />);
+    </script>
+</body>
+</html>
